@@ -25,11 +25,19 @@ def get_arp_devices():
 
 @st.cache_data
 def get_pis():
-    pi_macs = [
-        'b8-27-eb',
-        'dc-a6-32',
-        'e4-5f-01'
-    ]
+    pi_macs = []
+    if platform.system() == "Windows":
+        pi_macs = [
+            'b8-27-eb',
+            'dc-a6-32',
+            'e4-5f-01'
+        ]
+    else:
+        pi_macs = [
+            'b8:27:eb',
+            'dc:a6:32',
+            'e4:5f:01'
+        ]
     pattern = re.compile('(' + '|'.join(pi_macs) + ')')
     devices = get_arp_devices()
     pis = list(filter(lambda x: pattern.search(x[1]), devices))
