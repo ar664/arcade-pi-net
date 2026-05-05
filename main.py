@@ -20,7 +20,7 @@ def get_arp_devices():
     # Runs 'arp -a' command
     result = subprocess.check_output(['arp', '-a']).decode('utf-8')
     # Regex to find IP and MAC addresses in the output
-    devices = re.findall(r'(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F:-]+)', result)
+    devices = re.findall(r'(\d+\.\d+\.\d+\.\d+).+([0-9a-fA-F:-]{17,})', result)
     return devices
 
 @st.cache_data
