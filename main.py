@@ -1,6 +1,6 @@
 import streamlit as st
 import subprocess, re, shlex, pathlib
-import os, socket, urllib.request
+import os, platform, socket, urllib.request
 import json, xml.etree.ElementTree as ET
 
 
@@ -23,6 +23,7 @@ def get_arp_devices():
     devices = re.findall(r'(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F:-]+)', result)
     return devices
 
+@st.cache_data
 def get_pis():
     pi_macs = [
         'b8-27-eb',
@@ -36,9 +37,9 @@ def get_pis():
     for x in pis:
         try:
             hostname, alias, address = socket.gethostbyaddr(x[0])
-            pi_hosts.append((hostname, alias, address))
+            pi_hosts.append({"hostname": hostname, "address": ''.join(address)})
         except:
-            pi_hosts.append(x[0])
+            pi_hosts.append({"address": x[0]})
             continue
     return pi_hosts
 
@@ -63,23 +64,25 @@ def request_pi(ip, port, data, endpoint):
     return response
 
 def run_skyscraper(console):
-    #ssCommand = '/opt/retropie/supplementary/skyscraper/Skyscraper'
-    ssCommand = pathlib.Path.home().joinpath('Skyscraper/Skyscraper.exe')
+    ssCommand = ''
+    if platform.system() == 'Windows':
+        ssCommand = pathlib.Path.home().joinpath('Skyscraper/Skyscraper.exe')
+    else:
+        ssCommand = '/opt/retropie/supplementary/skyscraper/Skyscraper'
+    
     if not os.path.exists(ssCommand):
             print('skyScraper not found in: ' + ssCommand)
             return
 
+    #Set paths/options in config.ini
     # Example command:
     # /opt/retropie/supplementary/skyscraper/Skyscraper -p psx 
-    # -g /opt/retropie/configs/all/emulationstation/gamelists/psx 
-    # -o /opt/retropie/configs/all/emulationstation/downloaded_media/psx 
 
     input_path = pathlib.Path.home().joinpath('RetroPie/roms/')
     gamelists_path = pathlib.Path.home().joinpath('.emulationstation/gamelists/')
     dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
     options = ' --flags onlymissing,unattend,skipped'
-
-    #command:str = '' + str(ssCommand) + ' -f emulationstation -s screenscraper -p ' + console + ' -i "' + str(input_path.joinpath(console)) + '" -g "' + str(gamelists_path.joinpath(console)) + '" -o "' + str(dlmedia_path.joinpath(console)) + '"' + options
+    
     command = str(ssCommand) + ' -p ' + console
     command = command.replace('\\', "\\\\")
     print(command)
@@ -151,7 +154,7 @@ if len(consoles) > 0:
 pi_col, rom_col = st.tabs(["Communicate", "File Management"])
 
 with pi_col:
-    pi_selection = st.pills("Select Pis", pis, selection_mode="multi")
+    pi_selection = st.dataframe(pis, selection_mode="multi-row", on_select="rerun")
 
     st.header("Game Setter")
     console_selection =  st.selectbox("Select Console", consoles)
@@ -159,27 +162,27 @@ with pi_col:
         rom_sublist = [rom['name'] for rom in roms if rom['console'] == console_selection]
         rom_sublist.sort()
         rom_selection = st.selectbox("Select Rom", rom_sublist)
-        if rom_selection and len(pi_selection) > 0:
-            if st.button("Press to play on Pi(s)"):
+        if rom_selection:
+            if st.button("Press to play on Pi(s)", key="RomPlay"):
                 print(console_selection + ' ' + rom_selection)
                 data = {'rom': rom_selection, "console": console_selection}
                 
                 responses = []
-                for i, pi in enumerate(pi_selection):
-                    responses.append(request_pi(pi, '5001', data, 'games'))
+                for pi in pi_selection['selection']['rows']:
+                    responses.append(request_pi(pis[pi]['address'], '5001', data, 'games'))
 
                 st.table(responses)
 
     st.header("Genre Setter")
     genre_selection = st.selectbox("Select Genre", genres)
-    if genre_selection and len(pi_selection) > 0:
-        if st.button("Press to play on Pi(s)"):
+    if genre_selection:
+        if st.button("Press to play on Pi(s)", key="GenrePlay"):
             print('Genre selection: ' + genre_selection)
             data = {'genre': genre_selection}
 
             responses = []
-            for i, pi in enumerate(pi_selection):
-                responses.append(request_pi(pi, '5001', data, 'random'))
+            for pi in pi_selection['selection']['rows']:
+                responses.append(request_pi(pis[pi]['address'], '5001', data, 'random'))
 
             st.table(responses)
 
