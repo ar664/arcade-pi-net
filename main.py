@@ -210,14 +210,14 @@ with pi_col:
 
     st.header("Filter Setter")
     genre_selection = st.selectbox("Select Genre", genres)
-    players_selection = st.selectbox("Select Player Amount", [1, 2, 4], placeholder=None)
+    players_selection = st.selectbox("Select Player Amount", [1, 2, 4], index=None)
     if genre_selection:
         if st.button("Press to play on Pi(s)", key="FilterPlay"):
             print('Genre selection: ' + genre_selection)
             data = {
                     'filter': 
                         {
-                            'genre': genre_selection
+                            'genres': genre_selection
                         }
                     }
             if(players_selection):
