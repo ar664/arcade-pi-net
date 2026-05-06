@@ -2,7 +2,7 @@ import streamlit as st
 import subprocess, re, shlex, pathlib
 import os, platform, socket, urllib.request
 import json, xml.etree.ElementTree as ET
-
+import fcntl, struct, ipaddress
 
 
 comment1 = """
@@ -15,6 +15,29 @@ E4:5F:01:**:**:**
 rom_directory = pathlib.Path.home().joinpath('RetroPie/roms/')
 
 st.title("Arcade Pi Network Management")
+
+def get_gateway_and_netmask():
+    iface = gw = netmask = None
+    with open("/proc/net/route") as f:
+        for line in f.readlines()[1:]:
+            fields = line.strip().split()
+            iface, dest, gateway = fields[0], fields[1], fields[2]
+
+            if dest == '00000000':  # default route
+                gw = socket.inet_ntoa(struct.pack("<L", int(gateway, 16)))
+    
+    if iface:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ifreq = struct.pack('256s', iface[:15].encode('utf-8'))
+        res = fcntl.ioctl(s.fileno(), 0x891b, ifreq)  # SIOCGIFNETMASK
+        netmask = socket.inet_ntoa(res[20:24])
+
+    return gw, netmask
+
+def nmap_discover():
+    gw, nm  = get_gateway_and_netmask()
+    network = ipaddress.IPv4Network(f"{gw}/{nm}", strict=False)
+    subprocess.run(['nmap', '-sn', str(network)])
 
 def get_arp_devices():
     # Runs 'arp -a' command
@@ -162,6 +185,10 @@ if len(consoles) > 0:
 pi_col, rom_col = st.tabs(["Communicate", "File Management"])
 
 with pi_col:
+    if st.button("Refresh network / pis"):
+        nmap_discover()
+        pis = get_pis()
+
     pi_selection = st.dataframe(pis, selection_mode="multi-row", on_select="rerun")
 
     st.header("Game Setter")
