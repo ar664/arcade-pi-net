@@ -118,7 +118,7 @@ def run_skyscraper(console):
     dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
     options = ' --flags onlymissing,unattend,skipped'
     
-    command = str(ssCommand) + ' -p ' + console
+    command = str(ssCommand) + ' -p ' + console + options
     command = command.replace('\\', "\\\\")
     print(command)
 
