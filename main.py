@@ -100,8 +100,10 @@ def request_pi(ip, port, data, endpoint):
 
 def run_skyscraper(console):
     ssCommand = ''
+    shell_bool = False
     if platform.system() == 'Windows':
         ssCommand = pathlib.Path.home().joinpath('Skyscraper/Skyscraper.exe')
+        shell_bool = True
     else:
         ssCommand = '/opt/retropie/supplementary/skyscraper/Skyscraper'
     
@@ -116,13 +118,13 @@ def run_skyscraper(console):
     input_path = pathlib.Path.home().joinpath('RetroPie/roms/')
     gamelists_path = pathlib.Path.home().joinpath('.emulationstation/gamelists/')
     dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
-    options = ' --flags onlymissing,unattend,skipped'
+    options = ' -s screenscraper --flags onlymissing,unattend,skipped'
     
     command = str(ssCommand) + ' -p ' + console + options
     command = command.replace('\\', "\\\\")
     print(command)
 
-    return subprocess.run(shlex.split(command),shell=True)
+    return subprocess.run(shlex.split(command), shell=shell_bool)
 
 #Scrape all consoles, while updating the gamelist.xml
 def all_skyscraper(consoles):
