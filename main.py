@@ -87,6 +87,10 @@ def request_pi(ip, port, data, endpoint):
         print(body)
         if(body['result']):
             response = {'ip':pi, 'result': body['result']}
+            if(body['rom']):
+                response['rom'] = body['rom']
+            else:
+                response['rom'] = 'N/A'
         else:
             response = {'ip':pi, 'result': 'unknown'}
     except Exception as error:
@@ -195,50 +199,51 @@ with pi_col:
     attract_mode = st.checkbox("Attract Mode (Game changes without user interaction)")
     attract_timeout = st.text_input("Attract Mode Timeout (seconds)", value=300)
 
-    st.header("Game Setter")
-    console_selection =  st.selectbox("Select Console", consoles)
-    if console_selection:
-        rom_sublist = [rom['name'] for rom in roms if rom['console'] == console_selection]
-        rom_sublist.sort()
-        rom_selection = st.selectbox("Select Rom", rom_sublist)
-        if rom_selection:
-            if st.button("Press to play on Pi(s)", key="RomPlay"):
-                print(console_selection + ' ' + rom_selection)
+    game_tab, filter_tab = st.tabs(["Game Setter", "Filter Setter"])
+    with game_tab:
+        console_selection =  st.selectbox("Select Console", consoles)
+        if console_selection:
+            rom_sublist = [rom['name'] for rom in roms if rom['console'] == console_selection]
+            rom_sublist.sort()
+            rom_selection = st.selectbox("Select Rom", rom_sublist)
+            if rom_selection:
+                if st.button("Press to play on Pi(s)", key="RomPlay"):
+                    print(console_selection + ' ' + rom_selection)
+                    data = {
+                        'rom': rom_selection, 
+                        'console': console_selection,
+                        'attractMode': attract_mode,
+                        'attractModeTimeout': attract_timeout
+                    }
+                    
+                    responses = []
+                    for pi in pi_selection['selection']['rows']:
+                        responses.append(request_pi(pis[pi]['address'], '5001', data, 'games'))
+
+                    st.table(responses)
+
+    with filter_tab:
+        genre_selection = st.selectbox("Select Genre", genres)
+        players_selection = st.selectbox("Select Player Amount (Optional)", [1, 2, 4], index=None)
+        if genre_selection:
+            if st.button("Press to play on Pi(s)", key="FilterPlay"):
+                print('Genre selection: ' + genre_selection)
                 data = {
-                    'rom': rom_selection, 
-                    'console': console_selection,
-                    'attractMode': attract_mode,
-                    'attractModeTimeout': attract_timeout
-                }
-                
+                        'attractMode': attract_mode,
+                        'attractModeTimeout': attract_timeout,
+                        'filter': 
+                            {
+                                'genres': genre_selection
+                            }
+                        }
+                if(players_selection):
+                    data['filter']['players'] = players_selection
+
                 responses = []
                 for pi in pi_selection['selection']['rows']:
-                    responses.append(request_pi(pis[pi]['address'], '5001', data, 'games'))
+                    responses.append(request_pi(pis[pi]['address'], '5001', data, 'random'))
 
                 st.table(responses)
-
-    st.header("Filter Setter")
-    genre_selection = st.selectbox("Select Genre", genres)
-    players_selection = st.selectbox("Select Player Amount (Optional)", [1, 2, 4], index=None)
-    if genre_selection:
-        if st.button("Press to play on Pi(s)", key="FilterPlay"):
-            print('Genre selection: ' + genre_selection)
-            data = {
-                    'attractMode': attract_mode,
-                    'attractModeTimeout': attract_timeout,
-                    'filter': 
-                        {
-                            'genres': genre_selection
-                        }
-                    }
-            if(players_selection):
-                data['filter']['players'] = players_selection
-
-            responses = []
-            for pi in pi_selection['selection']['rows']:
-                responses.append(request_pi(pis[pi]['address'], '5001', data, 'random'))
-
-            st.table(responses)
 
 
 with rom_col:
