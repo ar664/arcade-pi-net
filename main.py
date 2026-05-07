@@ -191,6 +191,10 @@ with pi_col:
 
     pi_selection = st.dataframe(pis, selection_mode="multi-row", on_select="rerun")
 
+    st.subheader("Global Options")
+    attract_mode = st.checkbox("Attract Mode (Game changes without user interaction)")
+    attract_timeout = st.text_input("Attract Mode Timeout (seconds)", value=300)
+
     st.header("Game Setter")
     console_selection =  st.selectbox("Select Console", consoles)
     if console_selection:
@@ -200,7 +204,12 @@ with pi_col:
         if rom_selection:
             if st.button("Press to play on Pi(s)", key="RomPlay"):
                 print(console_selection + ' ' + rom_selection)
-                data = {'rom': rom_selection, "console": console_selection}
+                data = {
+                    'rom': rom_selection, 
+                    'console': console_selection,
+                    'attractMode': attract_mode,
+                    'attractModeTimeout': attract_timeout
+                }
                 
                 responses = []
                 for pi in pi_selection['selection']['rows']:
@@ -210,11 +219,13 @@ with pi_col:
 
     st.header("Filter Setter")
     genre_selection = st.selectbox("Select Genre", genres)
-    players_selection = st.selectbox("Select Player Amount", [1, 2, 4], index=None)
+    players_selection = st.selectbox("Select Player Amount (Optional)", [1, 2, 4], index=None)
     if genre_selection:
         if st.button("Press to play on Pi(s)", key="FilterPlay"):
             print('Genre selection: ' + genre_selection)
             data = {
+                    'attractMode': attract_mode,
+                    'attractModeTimeout': attract_timeout,
                     'filter': 
                         {
                             'genres': genre_selection
