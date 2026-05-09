@@ -2,8 +2,11 @@ import streamlit as st
 import subprocess, re, shlex, pathlib
 import os, platform, socket, urllib.request
 import json, xml.etree.ElementTree as ET
-import fcntl, struct, ipaddress
-
+import struct, ipaddress
+if platform.system() == "Windows":
+    import winfcntl
+else:
+    import fcntl
 
 comment1 = """
 MAC Address Range for RPI's
@@ -13,6 +16,8 @@ E4:5F:01:**:**:**
 """
 
 rom_directory = pathlib.Path.home().joinpath('RetroPie/roms/')
+paths_bool = False
+options_bool = True
 
 st.title("Arcade Pi Network Management")
 
@@ -77,7 +82,6 @@ def get_pis():
 def request_pi(ip, port, data, endpoint):
     url = 'http://' + ip + ':' + port + '/' + endpoint
     headers = {"Content-Type": "application/json"}
-    #print(url)
 
     encoded_data = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=encoded_data, headers=headers, method='POST')
@@ -95,7 +99,7 @@ def request_pi(ip, port, data, endpoint):
             response = {'ip':pi, 'result': 'unknown'}
     except Exception as error:
         response = {'ip':pi, 'result': error}
-        print(error)
+        st.error(error)
     return response
 
 def run_skyscraper(console):
@@ -112,16 +116,20 @@ def run_skyscraper(console):
             return
 
     #Set paths/options in config.ini
-    # Example command:
-    # /opt/retropie/supplementary/skyscraper/Skyscraper -p psx 
-
     input_path = pathlib.Path.home().joinpath('RetroPie/roms/')
     gamelists_path = pathlib.Path.home().joinpath('.emulationstation/gamelists/')
     dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
+    paths = ' -i "' + str(input_path.joinpath(console)) + '" -g "' + str(gamelists_path.joinpath(console)) + '" -o "' + str(dlmedia_path.joinpath(console)) + '"'
     options = ' -s screenscraper --flags onlymissing,unattend,skipped'
-    
-    command = str(ssCommand) + ' -p ' + console + options
-    command = command.replace('\\', "\\\\")
+
+    command = str(ssCommand) + ' -p ' + console
+
+    if paths_bool:
+        command = command + paths
+    if options_bool: 
+        command = command + options        
+    if platform.system() == "Windows":      
+        command = command.replace('\\', "\\\\")
     print(command)
 
     return subprocess.run(shlex.split(command), shell=shell_bool)
@@ -192,7 +200,8 @@ pi_col, rom_col = st.tabs(["Communicate", "File Management"])
 
 with pi_col:
     if st.button("Refresh network / pis"):
-        nmap_discover()
+        if platform.system() == "Linux":
+            nmap_discover()
         pis = get_pis()
 
     pi_selection = st.dataframe(pis, selection_mode="multi-row", on_select="rerun")
@@ -201,7 +210,7 @@ with pi_col:
     attract_mode = st.checkbox("Attract Mode (Game changes without user interaction)")
     attract_timeout = st.text_input("Attract Mode Timeout (seconds)", value=300)
 
-    game_tab, filter_tab = st.tabs(["Game Setter", "Filter Setter"])
+    game_tab, filter_tab, maint_tab = st.tabs(["Game Setter", "Filter Setter", "Maintenance"])
     with game_tab:
         console_selection =  st.selectbox("Select Console", consoles)
         if console_selection:
@@ -246,6 +255,23 @@ with pi_col:
                     responses.append(request_pi(pis[pi]['address'], '5001', data, 'random'))
 
                 st.table(responses)
+
+    with maint_tab:
+        if st.button("Reboot Pi(s)"):
+            data = {'dummy': 'data'}
+            responses = []
+            for pi in pi_selection['selection']['rows']:
+                responses.append(request_pi(pis[pi]['address'], '5001', data, 'reboot'))
+
+            st.table(responses)
+        
+        if st.button("Play EmulationStation on Pi(s)"):
+            data = {'dummy': 'data'}
+            responses = []
+            for pi in pi_selection['selection']['rows']:
+                responses.append(request_pi(pis[pi]['address'], '5001', data, 'startES'))
+
+            st.table(responses)
 
 
 with rom_col:
