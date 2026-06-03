@@ -130,7 +130,7 @@ def run_skyscraper(console):
     
     if platform.system() == "Windows":      
         command = command.replace('\\', "\\\\")
-    command2 = command
+    command2 = command + ' --flags unattend'
 
     if paths_bool:
         command = command + paths
