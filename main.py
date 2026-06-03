@@ -73,34 +73,36 @@ def get_pis():
     for x in pis:
         try:
             hostname, alias, address = socket.gethostbyaddr(x[0])
-            resp = request_pi(x[0], endpoint_port, {'dummy':'data'}, 'game')
+            resp = request_pi(x[0], endpoint_port, 'game')
             pi_hosts.append({"hostname": hostname, "address": ''.join(address), "rom": resp.get('rom', ''), "status": resp.get('result', '')})
         except:
-            resp = request_pi(x[0], endpoint_port, {'dummy':'data'}, 'game')
+            resp = request_pi(x[0], endpoint_port, 'game')
             pi_hosts.append({"address": x[0], "rom": resp.get('rom', ''), "status": resp.get('result', '')})
             continue
     return pi_hosts
 
-def request_pi(ip, port, data, endpoint):
+def request_pi(ip, port, endpoint, data=None, method='GET'):
     url = 'http://' + ip + ':' + port + '/' + endpoint
     headers = {"Content-Type": "application/json"}
 
-    encoded_data = json.dumps(data).encode("utf-8")
-    req = urllib.request.Request(url, data=encoded_data, headers=headers, method='POST')
+    req = urllib.request.Request(url, headers=headers, method='GET')
+    if method == 'POST':
+        encoded_data = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(url, data=encoded_data, headers=headers, method='POST')
     try:
         resp = urllib.request.urlopen(req).read()
         body = json.loads(resp.decode("utf-8"))
         print(body)
-        if(body['result']):
-            response = {'ip':ip, 'result': body['result']}
-            if(body['rom']):
-                response['rom'] = body['rom']
-            else:
-                response['rom'] = 'N/A'
+        response = {'ip': ip}
+        if('result' in body):
+            response['result'] = body['result']
+        elif 'process' in body:    
+            response['result'] = body['process']
         else:
-            response = {'ip':ip, 'result': 'unknown'}
+            response['result'] = 'unknown'
+        response['rom'] = body['rom'] if 'rom' in body else ''
     except Exception as error:
-        response = {'ip':ip, 'result': 'error'}
+        response = {'ip':ip, 'result': str(error)}
     return response
 
 #Run the skyscraper command twice to update gamelist.xml
@@ -201,10 +203,12 @@ pis = get_pis()
 if len(consoles) > 0:
     expander = st.expander("Console|Rom List")
     with expander:
+        if st.button("Refresh Rom List"):
+            consoles, roms, genres = get_roms()
         tabs = st.tabs(consoles)
         for i, console in enumerate(consoles):
             with tabs[i]:
-                rom_table = [rom for rom in roms if rom['console'] == console]
+                rom_table = [{'name': rom['name'], 'genre': rom['genre'], 'players': rom['players']} for rom in roms if rom['console'] == console]
                 st.dataframe(rom_table, height=400)
     expander2 = st.expander("Genre List")
     with expander2:
