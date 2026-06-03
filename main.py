@@ -248,7 +248,7 @@ with pi_col:
                     
                     responses = []
                     for pi in pi_selection['selection']['rows']:
-                        responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'games'))
+                        responses.append(request_pi(pis[pi]['address'], endpoint_port, 'games', data))
 
                     st.table(responses)
 
@@ -271,7 +271,7 @@ with pi_col:
 
                 responses = []
                 for pi in pi_selection['selection']['rows']:
-                    responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'random'))
+                    responses.append(request_pi(pis[pi]['address'], endpoint_port, 'random', data))
 
                 st.table(responses)
 
@@ -280,7 +280,7 @@ with pi_col:
             data = {'dummy': 'data'}
             responses = []
             for pi in pi_selection['selection']['rows']:
-                responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'reboot'))
+                responses.append(request_pi(pis[pi]['address'], endpoint_port, 'reboot', data))
 
             st.table(responses)
         
@@ -288,7 +288,7 @@ with pi_col:
             data = {'dummy': 'data'}
             responses = []
             for pi in pi_selection['selection']['rows']:
-                responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'startES'))
+                responses.append(request_pi(pis[pi]['address'], endpoint_port, 'startES', data))
 
             st.table(responses)
 
