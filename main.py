@@ -14,7 +14,7 @@ B8:27:EB:**:**:**
 DC:A6:32:**:**:**
 E4:5F:01:**:**:**
 """
-
+endpoint_port = '5001'
 rom_directory = pathlib.Path.home().joinpath('RetroPie/roms/')
 paths_bool = False
 options_bool = True
@@ -73,9 +73,11 @@ def get_pis():
     for x in pis:
         try:
             hostname, alias, address = socket.gethostbyaddr(x[0])
-            pi_hosts.append({"hostname": hostname, "address": ''.join(address)})
+            resp = request_pi(x[0], endpoint_port, {'dummy':'data'}, 'game')
+            pi_hosts.append({"hostname": hostname, "address": ''.join(address), "rom": resp.get('rom', ''), "status": resp.get('result', '')})
         except:
-            pi_hosts.append({"address": x[0]})
+            resp = request_pi(x[0], endpoint_port, {'dummy':'data'}, 'game')
+            pi_hosts.append({"address": x[0], "rom": resp.get('rom', ''), "status": resp.get('result', '')})
             continue
     return pi_hosts
 
@@ -90,18 +92,18 @@ def request_pi(ip, port, data, endpoint):
         body = json.loads(resp.decode("utf-8"))
         print(body)
         if(body['result']):
-            response = {'ip':pi, 'result': body['result']}
+            response = {'ip':ip, 'result': body['result']}
             if(body['rom']):
                 response['rom'] = body['rom']
             else:
                 response['rom'] = 'N/A'
         else:
-            response = {'ip':pi, 'result': 'unknown'}
+            response = {'ip':ip, 'result': 'unknown'}
     except Exception as error:
-        response = {'ip':pi, 'result': error}
-        st.error(error)
+        response = {'ip':ip, 'result': 'error'}
     return response
 
+#Run the skyscraper command twice to update gamelist.xml
 def run_skyscraper(console):
     ssCommand = ''
     shell_bool = False
@@ -117,28 +119,41 @@ def run_skyscraper(console):
 
     #Set paths/options in config.ini
     input_path = pathlib.Path.home().joinpath('RetroPie/roms/')
-    gamelists_path = pathlib.Path.home().joinpath('.emulationstation/gamelists/')
-    dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
-    paths = ' -i "' + str(input_path.joinpath(console)) + '" -g "' + str(gamelists_path.joinpath(console)) + '" -o "' + str(dlmedia_path.joinpath(console)) + '"'
+    #gamelists_path = pathlib.Path.home().joinpath('.emulationstation/gamelists/')
+    #dlmedia_path = pathlib.Path.home().joinpath('.emulationstation/downloaded_media/')
+    paths = ' -i "' + str(input_path.joinpath(console)) 
     options = ' -s screenscraper --flags onlymissing,unattend,skipped'
 
     command = str(ssCommand) + ' -p ' + console
+    
+    if platform.system() == "Windows":      
+        command = command.replace('\\', "\\\\")
+    command2 = command
 
     if paths_bool:
         command = command + paths
     if options_bool: 
         command = command + options        
-    if platform.system() == "Windows":      
-        command = command.replace('\\', "\\\\")
+    
     print(command)
 
-    return subprocess.run(shlex.split(command), shell=shell_bool)
+    subprocess.run(shlex.split(command), shell=shell_bool)
+    return subprocess.run(shlex.split(command2), shell=shell_bool)
 
 #Scrape all consoles, while updating the gamelist.xml
 def all_skyscraper(consoles):
     ret_list = []
     for console in consoles:
         ret_list.append(run_skyscraper(console))
+
+#Find the current consoles with a gamelist.xml in the rom directory 
+def find_consoles():
+    consoles = []
+    consoles_all = os.listdir(rom_directory)
+    for console in consoles_all:
+        if os.path.isfile(rom_directory.joinpath(console + '/gamelist.xml')):
+            consoles.append(console)
+    return consoles
 
 @st.cache_data
 def get_roms():
@@ -147,9 +162,9 @@ def get_roms():
     genres = {}
     extensions = []
 
-    consoles = os.listdir(pathlib.Path.home().joinpath('.emulationstation/gamelists/'))
+    consoles = find_consoles()
     extensions = ['.null']*len(consoles)
-    consoles.remove('retropie')
+
     #print(consoles)
 #/etc/emulationstation/es_systems.cfg
     extensionTree = ET.parse('./es_systems.cfg')
@@ -164,7 +179,7 @@ def get_roms():
     for i, console in enumerate(consoles):
         #romDirs.append(rom_directory.joinpath(console).as_uri)
 
-        romTree = ET.parse(pathlib.Path.home().joinpath('.emulationstation/gamelists/' + consoles[i] + '/gamelist.xml'))
+        romTree = ET.parse(rom_directory.joinpath(console + '/gamelist.xml'))
         if(romTree is not None):
             #print('romTree found:', pathlib.Path.home().joinpath('.emulationstation/gamelists/' + consoles[i] + '/gamelist.xml'))
             root = romTree.getroot()
@@ -229,7 +244,7 @@ with pi_col:
                     
                     responses = []
                     for pi in pi_selection['selection']['rows']:
-                        responses.append(request_pi(pis[pi]['address'], '5001', data, 'games'))
+                        responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'games'))
 
                     st.table(responses)
 
@@ -252,7 +267,7 @@ with pi_col:
 
                 responses = []
                 for pi in pi_selection['selection']['rows']:
-                    responses.append(request_pi(pis[pi]['address'], '5001', data, 'random'))
+                    responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'random'))
 
                 st.table(responses)
 
@@ -261,7 +276,7 @@ with pi_col:
             data = {'dummy': 'data'}
             responses = []
             for pi in pi_selection['selection']['rows']:
-                responses.append(request_pi(pis[pi]['address'], '5001', data, 'reboot'))
+                responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'reboot'))
 
             st.table(responses)
         
@@ -269,7 +284,7 @@ with pi_col:
             data = {'dummy': 'data'}
             responses = []
             for pi in pi_selection['selection']['rows']:
-                responses.append(request_pi(pis[pi]['address'], '5001', data, 'startES'))
+                responses.append(request_pi(pis[pi]['address'], endpoint_port, data, 'startES'))
 
             st.table(responses)
 

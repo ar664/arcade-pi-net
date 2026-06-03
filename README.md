@@ -14,3 +14,11 @@ cd arcade-pi-net
 source venv/Scripts/activate
 streamlit run main.py
 ```
+
+## Misc 
+
+For setting up multiple pis sharing this hosts rom directory. Modify the `/opt/retropie/configs/all/retroarch.cfg ` with the following options:
+```
+savefile_directory = /home/pi/RetroPie/saves
+savestate_directory = /home/pi/RetroPie/savestates
+```
